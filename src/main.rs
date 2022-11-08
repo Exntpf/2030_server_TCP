@@ -1,13 +1,13 @@
 use std::{
     env,
-    fs,
+    fs::{*, self},
     io::{ prelude::*, BufReader},
     net::{TcpListener, TcpStream},
 };
 
 // starts up either a client or server instance.
 // client given IP address: 127.0.0.1:1111
-// server given IP address: 127.0.0.1:7878, which is hardcoded into client. 
+// server given IP address: 127.0.0.1:7877, which is hardcoded into client. 
 
 fn main(){
     let args: Vec<String> = env::args().collect();
@@ -34,39 +34,46 @@ fn run_client() -> i32{
 
 fn connect_to_server() -> i32{
 
-    match TcpStream::connect("127.0.0.1:7878") {
+    match TcpStream::connect("127.0.0.1:7877") {
         Ok(mut stream) => {
             
             println!("Client: Connection to server established.");
 
             let get_msg_str= "GET /dcap HTTP/1.1\r\n";
-
             stream.write(get_msg_str.as_bytes()).unwrap();
 
             println!("Client: Get message sent successfully.");
 
             let buf_reader = BufReader::new(&mut stream);
+            let response_lines = buf_reader.lines();
 
-            match buf_reader.lines().next().unwrap() {
-                Ok(server_response) => {
-                    println!("Client: Received server response.");
-                    match fs::write("client_output.txt", server_response.as_bytes()){
-                        Ok(_) => {
-                            println!("Client: Server response successfully saved to client_output.txt.");
-                            return 0;
-                        },
-                        Err(err_code) => {
-                            println!("Client: Could not save server response to file -> {}", err_code);
-                            return -1;
+            println!("Client: Received server response.");
+            let mut output_file = File::create(&"client_output.txt").unwrap();
+            // let mut output_file = fs::OpenOptions::new()
+            //     .write(true)
+            //     .create(true)
+            //     .truncate(true)
+            //     .append(true)
+            //     .open("client_output.txt")
+            //     .unwrap();
 
-                        },
-                    };
-                },
-                Err(err_code) => {
-                    println!("Client: Server response error -> {}", err_code);
-                    return -1;
-                },
+            for line in response_lines {
+                match line {
+                    Ok(output_line) => {
+                        if let Err(err_code) = writeln!(output_file, "{}", &output_line){
+                                println!("Client: Could not save server response to file -> {}", err_code);
+                                return -1;
+                        }
+                        continue;
+                    },
+                    Err(err_code) => {
+                        println!("Client: Server response error -> {}", err_code);
+                        return -1;
+                    },
+                }
             }
+            println!("Client: Server response successfully saved to client_output.txt.");
+            return 0;
         },
         Err(err_code) => {
             println!("Client: Could not connect to server -> {}", err_code);
@@ -77,8 +84,8 @@ fn connect_to_server() -> i32{
 
 
 fn run_server() -> i32{
-    let listener = TcpListener::bind("127.0.0.1:7878").unwrap();
-    println!("server running on: 127.0.0.1:7878");
+    let listener = TcpListener::bind("127.0.0.1:7877").unwrap();
+    println!("server running on: 127.0.0.1:7877");
     
     for stream in listener.incoming(){
         let stream = stream.unwrap();

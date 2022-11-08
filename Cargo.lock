@@ -3,5 +3,5 @@
 version = 3
 
 [[package]]
-name = "tcp_resource"
+name = "tcp_server_client"
 version = "0.1.0"
